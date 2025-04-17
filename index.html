@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Multi-User Registration & QR</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrious/dist/qrious.min.js"></script>
+  <style>
+    body { font-family: Arial; padding: 20px; max-width: 600px; margin: auto; }
+    input, button { margin: 10px 0; width: 100%; padding: 8px; }
+    .user-card { border: 1px solid #ccc; border-radius: 8px; padding: 10px; margin: 10px 0; }
+    .user-card h4 { margin: 5px 0; }
+    canvas { display: block; margin: 20px auto; }
+    #search { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script>
+    const path = window.location.pathname;
+
+    if (path.startsWith("/user/")) {
+      const code = path.split("/").pop();
+      const users = JSON.parse(localStorage.getItem("users")) || [];
+      const user = users.find(u => u.code === code);
+
+      document.getElementById("app").innerHTML = \`
+        <h1>User Info</h1>
+        <div id="user-info">
+          \${user ? \`
+            <p><strong>Name:</strong> \${user.name}</p>
+            <p><strong>Age:</strong> \${user.age}</p>
+            <p><strong>Address:</strong> \${user.address}</p>
+            <p><strong>Code:</strong> \${user.code}</p>
+          \` : \`<p>User with code <strong>\${code}</strong> not found.</p>\`}
+        </div>
+      \`;
+    } else {
+      document.getElementById("app").innerHTML = \`
+        <h2>Registration Form</h2>
+        <input type="text" id="name" placeholder="Name" required>
+        <input type="number" id="age" placeholder="Age" required>
+        <input type="text" id="address" placeholder="Address" required>
+        <input type="text" id="code" placeholder="Code Number (e.g., 001)" required>
+        <button onclick="addUser()">Register</button>
+
+        <h3>Registered Users</h3>
+        <input type="text" id="search" placeholder="Search by Name or Code..." oninput="displayUsers()">
+        <div id="userList"></div>
+        <canvas id="qr"></canvas>
+      \`;
+
+      window.onload = function () {
+        displayUsers();
+      };
+
+      window.getUsers = function () {
+        return JSON.parse(localStorage.getItem('users')) || [];
+      }
+
+      window.saveUsers = function (users) {
+        localStorage.setItem('users', JSON.stringify(users));
+      }
+
+      window.addUser = function () {
+        const name = document.getElementById('name').value.trim();
+        const age = document.getElementById('age').value.trim();
+        const address = document.getElementById('address').value.trim();
+        const code = document.getElementById('code').value.trim();
+
+        if (!name || !age || !address || !code) {
+          alert("Please fill out all fields.");
+          return;
+        }
+
+        const users = getUsers();
+
+        if (users.some(u => u.code === code)) {
+          alert("Code already used. Please enter a unique code.");
+          return;
+        }
+
+        users.push({ name, age, address, code });
+        saveUsers(users);
+        displayUsers();
+
+        document.getElementById('name').value = '';
+        document.getElementById('age').value = '';
+        document.getElementById('address').value = '';
+        document.getElementById('code').value = '';
+
+        alert("User registered!");
+      }
+
+      window.displayUsers = function () {
+        const userList = document.getElementById('userList');
+        const searchTerm = document.getElementById('search').value.toLowerCase();
+        userList.innerHTML = '';
+        const users = getUsers();
+
+        const filtered = users.filter(user =>
+          user.name.toLowerCase().includes(searchTerm) ||
+          user.code.toLowerCase().includes(searchTerm)
+        );
+
+        filtered.forEach(user => {
+          const div = document.createElement('div');
+          div.className = 'user-card';
+          div.innerHTML = \`
+            <h4>\${user.name} (Code: \${user.code})</h4>
+            <p>Age: \${user.age}</p>
+            <p>Address: \${user.address}</p>
+            <button onclick="generateQR('\${user.code}')">Generate QR</button>
+          \`;
+          userList.appendChild(div);
+        });
+
+        if (filtered.length === 0) {
+          userList.innerHTML = "<p>No matching users found.</p>";
+        }
+      }
+
+      window.generateQR = function (code) {
+        const url = \`https://organizer-two-rho.vercel.app/user/\${encodeURIComponent(code)}\`;
+        new QRious({
+          element: document.getElementById('qr'),
+          value: url,
+          size: 200
+        });
+        alert(\`QR Code for Code \${code} generated!\`);
+      }
+    }
+  </script>
+</body>
+</html>
